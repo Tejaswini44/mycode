@@ -1,0 +1,305 @@
+Exercise
+Part 1: Monolithic Spring Boot App
+Domain: Library Management System
+The application should handle books, authors, and borrowing records.
+
+Entities:
+
+Book: id, title, ISBN, author, status (available, borrowed)
+Author: id, name, country, list of books
+Borrowing Record: id, book, borrowing date, return date, user
+Requirements:
+
+CRUD operations for books and authors.
+Borrow a book (mark it as borrowed).
+Return a book (mark it as available and update the borrowing record).
+Find all books by an author.
+Find all borrowed books by a user.
+Part 2: Microservices Architecture
+Splitting the Monolithic App:
+
+Author Service
+
+Maintains details about authors.
+Provides an endpoint to retrieve all books by an author.
+Book Service
+
+Maintains the book catalog.
+Allows borrowing and returning of books. However, when a book is borrowed or returned, it sends a request to the Borrowing Service to create/update the borrowing record.
+Borrowing Service
+
+Maintains borrowing records.
+Provides an endpoint to retrieve all borrowed books by a user.
+Requirements:
+
+Each service should have its own database.
+Services should communicate using REST templates.
+Implement proper error handling. For instance, if the Borrowing Service is down, the Book Service should not allow borrowing a book.
+Handle scenarios where a book is added or removed. The corresponding author's list of books should be updated.
+Implement an endpoint in the Borrowing Service to find all overdue books.
+Bonus (for candidates to show extra effort):
+
+Implement service discovery using Spring Eureka.
+Add client-side load balancing with Ribbon.
+Implement API Gateway using Spring Cloud Gateway or Zuul.
+Guidelines:
+Each service should be a separate Spring Boot application.
+All inter-service communication should be handled via REST calls.
+Ensure transactional consistency across services. For example, if the Borrowing Service fails to create a record, the Book Service should mark the book as available.
+Use H2 or an embedded database for simplicity.
+Assessment Points:
+Proper division of responsibilities among services.
+Adherence to RESTful principles.
+Proper error handling and transaction management across services.
+Quality and clarity of the code, including meaningful variable names, modularity, and inclusion of comments.
+Proper implementation of the bonus features, if attempted.
+This assessment exercise should give you a good chance to showcase their deep understanding of both monolithic and microservices architectures in Spring Boot. Given your vast experiences, the challenge should be approachable while still allowing room for them to exhibit advanced skills and best practices.
+
+Implementation Guidelines
+Part 1: Monolithic Spring Boot Application - Library Management System
+1. Setup Spring Boot Project
+
+Visit Spring Initializr and choose:
+
+Maven Project
+Java
+Spring Boot version: Latest Stable
+Project Metadata: com.tcs.library, library-management
+Dependencies: Spring Web, Spring Data JPA, H2 Database, Lombok, Springfox Swagger UI
+Click Generate and extract the zip.
+
+2. Configuration
+
+src/main/resources/application.properties
+
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.driver-class-name=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.h2.console.enabled=true
+
+logging.level.org.hibernate.SQL=DEBUG
+logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
+
+# Swagger properties
+springfox.documentation.swagger.v2.path=/api-docs
+3. Entity Creation
+
+Book.java
+
+@Entity
+@Data
+public class Book {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String title;
+    private String ISBN;
+    @ManyToOne
+    private Author author;
+    @Enumerated(EnumType.STRING)
+    private BookStatus status;
+}
+
+enum BookStatus {
+    AVAILABLE,
+    BORROWED
+}
+Author.java
+
+@Entity
+@Data
+public class Author {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    private String country;
+    @OneToMany(mappedBy = "author")
+    private List<Book> books;
+}
+BorrowingRecord.java
+
+@Entity
+@Data
+public class BorrowingRecord {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @OneToOne
+    private Book book;
+    private LocalDate borrowingDate;
+    private LocalDate returnDate;
+    private String user;
+}
+4. Repositories
+
+Create JPA Repositories for each entity.
+
+5. Services
+
+Implement services to manage business logic.
+
+6. Controllers
+
+Implement REST controllers for CRUD operations and business operations.
+
+7. Logging
+
+logback-spring.xml
+
+<!-- configure your logging here -->
+8. Swagger
+
+Setup Swagger for API documentation.
+
+Part 2: Microservices Architecture
+1. Setup three Spring Boot Projects with the same dependencies as above but named author-service, book-service, and borrowing-service.
+
+2. Configuration for Microservices
+
+Similar to the monolithic configuration, adjust the database and server ports so they don't collide.
+
+3. Entity Creation and Operations
+
+Follow similar steps to the monolithic approach, but each microservice focuses on its domain.
+
+For instance, the book-service will be responsible for books and will only have references to author ids and not the whole author entity. This keeps our services decoupled.
+
+4. Service Communication
+
+Use RestTemplate for microservices to communicate. For instance, when a book is borrowed in the book-service, a call will be made to the borrowing-service to record the borrowing.
+
+5. Advanced Features
+
+Implement service discovery, client-side load balancing, and an API Gateway if required.
+
+This is a high-level guide. I've kept it concise for readability. Each step involves nuances, especially when partitioning monolithic apps into microservices. Proper error handling, data consistency, transaction management, and more are crucial. Given the experience level of the TCS learners, this exercise should provide a comprehensive understanding of both architectural patterns.
+
+Migrating the Monolith to Microservices
+Let's dig deeper into the microservices part:
+
+Part 2: Microservices Architecture
+1. Setup for author-service
+1.1. Configuration
+
+application.properties for author-service
+
+server.port=8081
+
+spring.datasource.url=jdbc:h2:mem:authordb
+spring.datasource.driver-class-name=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.h2.console.enabled=true
+1.2. Entity Creation
+
+Author.java
+
+@Entity
+@Data
+public class Author {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    private String country;
+}
+1.3. Repository
+
+AuthorRepository.java
+
+public interface AuthorRepository extends JpaRepository<Author, Long> {}
+1.4. Controller
+
+AuthorController.java
+
+@RestController
+@RequestMapping("/authors")
+public class AuthorController {
+    @Autowired
+    private AuthorRepository authorRepository;
+
+    @GetMapping
+    public List<Author> getAllAuthors() {
+        return authorRepository.findAll();
+    }
+
+    @PostMapping
+    public Author createAuthor(@RequestBody Author author) {
+        return authorRepository.save(author);
+    }
+}
+2. Setup for book-service
+2.1. Configuration
+
+application.properties for book-service
+
+server.port=8082
+
+spring.datasource.url=jdbc:h2:mem:bookdb
+...
+2.2. Entity Creation
+
+Book.java
+
+@Entity
+@Data
+public class Book {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String title;
+    private String ISBN;
+    private Long authorId; // Instead of the whole author object, we're storing authorId
+    @Enumerated(EnumType.STRING)
+    private BookStatus status;
+}
+2.3. Service Communication
+
+BookService.java
+
+@Service
+public class BookService {
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    public Author getAuthorById(Long authorId) {
+        return restTemplate.getForObject("http://localhost:8081/authors/" + authorId, Author.class);
+    }
+}
+3. Setup for borrowing-service
+Following similar lines, borrowing-service will have its own entity, repository, and controller. When a book is borrowed, you'd register it in borrowing-service.
+
+Expanding the exercise:
+Once the three services are created, operational, and talking to each other, here are potential expansion points:
+
+Service Discovery: Incorporate tools like Eureka Server. Each microservice will then be a Eureka client. It helps in dynamic discovery without hardcoding service URLs.
+
+Centralized Configuration: Integrate Spring Cloud Config server. Store configurations of all services in a central place.
+
+Resilience and Latency: Use Hystrix or Resilience4J for circuit breaking. When one service fails or is slow, you can provide fallbacks.
+
+API Gateway: Instead of direct communication between client and services, introduce an API Gateway (like Zuul) that routes requests to appropriate services.
+
+Tracing and Logging: Use tools like Sleuth and Zipkin for distributed tracing. Centralize logs with the ELK stack.
+
+Data Consistency: Add mechanisms for eventual consistency. For instance, when an author is deleted, ensure that related books are also addressed (either deleted or updated). This is where patterns like Saga can play a role.
+
+Testing: Focus on writing unit tests with Mocks and integration tests for service interaction.
+
+Continuous Deployment/Integration: Incorporate Jenkins or GitHub Actions to automate the deployment of services.
+
+By breaking the monolithic application into microservices and incorporating the above-mentioned tools, you will not only understand the intricacies of microservice architecture but will also appreciate the advantages (and challenges) it brings in terms of scalability, maintainability, and resilience.
+
+Reflection:
+While diving deep into microservices with Spring Boot, it's vital to notice that while we add functionality, the complexity also rises. But each tool and pattern addresses a real-world problem in microservices:
+
+Hystrix ensures one service failure doesn't bring down other dependent services.
+Eureka allows smooth inter-service communication.
+Ribbon provides load balancing to distribute traffic and prevent overloading a single service instance.
+For the developers, remember, it's not about using all these tools; it's about understanding their purpose and applying them judiciously. Always relate to real-world problems, like how Netflix uses Hystrix to ensure users always get recommendations, even if the primary recommendation service fails, a fallback provides generic recommendations. Understanding the "why" behind each tool is as crucial as the "how."
+
